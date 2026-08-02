@@ -1,4 +1,32 @@
 module Immuto
   VERSION: String
-  # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+
+  class Error < StandardError
+  end
+
+  class UnknownAttributeError < Error
+    def initialize: (untyped attribute) -> void
+  end
+
+  class Attribute
+    attr_reader name: Symbol
+
+    def initialize: (name: String | Symbol) -> void
+    def ==: (untyped other) -> bool
+    def eql?: (untyped other) -> bool
+    def hash: () -> Integer
+  end
+
+  module Immutable
+    def with: (**untyped changes) -> instance
+    def ==: (untyped other) -> bool
+    def eql?: (untyped other) -> bool
+    def hash: () -> Integer
+
+    module ClassMethods
+      def attribute: (String | Symbol name) -> Immuto::Attribute
+      def attributes: () -> Array[Immuto::Attribute]
+      def attribute_names: () -> Array[Symbol]
+    end
+  end
 end

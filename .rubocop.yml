@@ -1,5 +1,12 @@
 AllCops:
   TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+  CacheRootDirectory: tmp/rubocop_cache
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes

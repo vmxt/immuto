@@ -23,6 +23,13 @@ module Immuto
     end
   end
 
+  # Raised when a nested update reaches a value that cannot be updated further.
+  class NestedUpdateError < Error
+    def initialize(attribute)
+      super("attribute #{attribute.inspect} does not support nested updates")
+    end
+  end
+
   def self.included(base)
     base.include(Immutable)
   end

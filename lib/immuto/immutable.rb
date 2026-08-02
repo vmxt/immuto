@@ -19,6 +19,15 @@ module Immuto
       self.class.new(**immuto_values, **normalized_changes)
     end
 
+    def with_path(*path_and_value)
+      raise ArgumentError, "with_path requires at least one attribute and a value" if path_and_value.length < 2
+
+      value = path_and_value.pop
+      path = path_and_value.map { |key| normalize_immuto_attribute_key(key) }
+
+      immuto_with_path(path, value)
+    end
+
     def ==(other)
       other.instance_of?(self.class) && other.__send__(:immuto_values) == immuto_values
     end
@@ -63,6 +72,18 @@ module Immuto
       key.to_sym
     rescue NoMethodError
       raise UnknownAttributeError, key
+    end
+
+    def immuto_with_path(path, value)
+      attribute = path.first
+      validate_known_immuto_attributes!({ attribute => nil })
+
+      return with(**{ attribute => value }) if path.one?
+
+      nested_value = public_send(attribute)
+      raise NestedUpdateError, attribute unless nested_value.respond_to?(:with_path)
+
+      with(**{ attribute => nested_value.with_path(*path.drop(1), value) })
     end
 
     def immuto_value_for(attribute, attributes)

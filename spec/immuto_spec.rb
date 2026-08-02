@@ -54,6 +54,155 @@ RSpec.describe Immuto do
     expect(user.with).to be(user)
   end
 
+  it "updates a nested immutable object with with_path" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+      attribute :timezone
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+      attribute :plan
+    end
+
+    profile = profile_class.new(display_name: "Jeff", timezone: "UTC")
+    account = account_class.new(profile:, plan: "free")
+    updated = account.with_path(:profile, :display_name, "Ada")
+
+    expect(account.profile.display_name).to eq("Jeff")
+    expect(updated.profile.display_name).to eq("Ada")
+    expect(updated.profile.timezone).to eq("UTC")
+    expect(updated.plan).to eq("free")
+    expect(updated).to be_frozen
+    expect(updated.profile).to be_frozen
+  end
+
+  it "reuses unchanged nested branches during nested updates" do
+    address_class = Class.new do
+      include Immuto
+
+      attribute :city
+    end
+
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+      attribute :address
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+      attribute :plan
+    end
+
+    address = address_class.new(city: "Manila")
+    profile = profile_class.new(display_name: "Jeff", address:)
+    account = account_class.new(profile:, plan: "free")
+    updated = account.with_path(:profile, :display_name, "Ada")
+
+    expect(updated).not_to be(account)
+    expect(updated.profile).not_to be(profile)
+    expect(updated.profile.address).to be(address)
+    expect(updated.plan).to be(account.plan)
+  end
+
+  it "updates deeper nested immutable objects with with_path" do
+    address_class = Class.new do
+      include Immuto
+
+      attribute :city
+    end
+
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :address
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    address = address_class.new(city: "Manila")
+    profile = profile_class.new(address:)
+    account = account_class.new(profile:)
+    updated = account.with_path(:profile, :address, :city, "Cebu")
+
+    expect(account.profile.address.city).to eq("Manila")
+    expect(updated.profile.address.city).to eq("Cebu")
+    expect(updated.profile).not_to be(profile)
+    expect(updated.profile.address).not_to be(address)
+  end
+
+  it "accepts string keys in nested update paths" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    account = account_class.new(profile: profile_class.new(display_name: "Jeff"))
+    updated = account.with_path("profile", "display_name", "Ada")
+
+    expect(updated.profile.display_name).to eq("Ada")
+  end
+
+  it "updates top-level attributes with with_path" do
+    user = user_class.new(name: "Jeff", age: 24)
+    updated = user.with_path(:age, 25)
+
+    expect(user.age).to eq(24)
+    expect(updated.age).to eq(25)
+  end
+
+  it "raises when with_path does not receive a path and value" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect { user.with_path(:age) }
+      .to raise_error(ArgumentError, "with_path requires at least one attribute and a value")
+  end
+
+  it "raises when a nested path reaches a non-nested value" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect { user.with_path(:name, :first, "Ada") }
+      .to raise_error(Immuto::NestedUpdateError, "attribute :name does not support nested updates")
+  end
+
+  it "raises for unknown attributes in nested update paths" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    account = account_class.new(profile: profile_class.new(display_name: "Jeff"))
+
+    expect { account.with_path(:profile, :handle, "jeff") }
+      .to raise_error(Immuto::UnknownAttributeError, "unknown attribute: :handle")
+  end
+
   it "requires declared attributes without defaults" do
     expect { user_class.new(name: "Jeff") }
       .to raise_error(Immuto::MissingAttributeError, "missing attribute: :age")

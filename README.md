@@ -130,6 +130,50 @@ To change a value, create an updated copy:
 older_user = user.with(age: 25)
 ```
 
+## Nested Updates
+
+Use `with_path` to update an immutable object inside another immutable object.
+
+```ruby
+class Profile
+  include Immuto
+
+  attribute :display_name
+  attribute :timezone
+end
+
+class Account
+  include Immuto
+
+  attribute :profile
+  attribute :plan
+end
+
+account = Account.new(
+  profile: Profile.new(display_name: "Jeff", timezone: "UTC"),
+  plan: "free"
+)
+
+updated = account.with_path(:profile, :display_name, "Ada")
+
+account.profile.display_name
+#=> "Jeff"
+
+updated.profile.display_name
+#=> "Ada"
+
+updated.profile.timezone
+#=> "UTC"
+```
+
+`with_path` can update deeper paths too.
+
+```ruby
+updated = account.with_path(:profile, :settings, :theme, "dark")
+```
+
+Objects along the updated path are rebuilt. Unchanged values are reused.
+
 ## Equality
 
 Two Immuto objects are equal when they have the same class and the same attribute values.
@@ -152,6 +196,13 @@ User.new(name: "Jeff", email: "jeff@example.com")
 
 user.with(email: "jeff@example.com")
 # raises Immuto::UnknownAttributeError
+```
+
+Nested updates must pass through values that support `with_path`.
+
+```ruby
+user.with_path(:name, :first, "Ada")
+# raises Immuto::NestedUpdateError
 ```
 
 ## Inspecting Objects

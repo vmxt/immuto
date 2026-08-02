@@ -1,24 +1,24 @@
 # Immuto
 
-Immuto is a framework-agnostic immutable object toolkit for Ruby.
+Immuto helps you create small immutable value objects in Ruby.
 
-This is the Day 1 MVP for `v0.1.0`: immutable attributes, object freezing, `with`, and equality.
+It is framework-agnostic and works with plain Ruby classes. Include `Immuto`, declare attributes, and every instance becomes a frozen object with reader methods, value-based equality, and safe copy updates.
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Add Immuto to your Gemfile:
 
 ```ruby
 gem "immuto"
 ```
 
-Then execute:
+Then install:
 
 ```bash
 bundle install
 ```
 
-## Usage
+## Quick Start
 
 ```ruby
 class User
@@ -28,11 +28,7 @@ class User
   attribute :age
 end
 
-user = User.new(
-  name: "Jeff",
-  age: 24
-)
-
+user = User.new(name: "Jeff", age: 24)
 updated = user.with(age: 25)
 
 user.age
@@ -42,37 +38,98 @@ updated.age
 #=> 25
 ```
 
-Declared attributes are exposed as readers only. Instances are frozen after initialization.
+The original object does not change. `with` returns a new object with the requested changes.
+
+## Attributes
+
+Declare attributes with `attribute`.
 
 ```ruby
-user.frozen?
-#=> true
+class Post
+  include Immuto
 
-user.respond_to?(:age=)
+  attribute :title
+  attribute :published
+end
+```
+
+Attributes are available as readers:
+
+```ruby
+post = Post.new(title: "Hello", published: false)
+
+post.title
+#=> "Hello"
+```
+
+Writer methods are not generated:
+
+```ruby
+post.respond_to?(:title=)
 #=> false
 ```
 
-Objects compare equal when they have the same class and the same declared attribute values.
+## Immutability
+
+Objects are frozen after initialization.
+
+```ruby
+user = User.new(name: "Jeff", age: 24)
+
+user.frozen?
+#=> true
+```
+
+To change a value, create an updated copy:
+
+```ruby
+older_user = user.with(age: 25)
+```
+
+## Equality
+
+Two Immuto objects are equal when they have the same class and the same attribute values.
 
 ```ruby
 User.new(name: "Jeff", age: 24) == User.new(name: "Jeff", age: 24)
 #=> true
+
+User.new(name: "Jeff", age: 24) == User.new(name: "Jeff", age: 25)
+#=> false
+```
+
+## Unknown Attributes
+
+Immuto raises an error when you initialize or update an object with an attribute that was not declared.
+
+```ruby
+User.new(name: "Jeff", email: "jeff@example.com")
+# raises Immuto::UnknownAttributeError
+
+user.with(email: "jeff@example.com")
+# raises Immuto::UnknownAttributeError
 ```
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+Install dependencies:
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```bash
+bin/setup
+```
 
-## Contributing
+Run the test suite:
 
-Bug reports and pull requests are welcome. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the code of conduct.
+```bash
+bundle exec rake
+```
+
+Open a console:
+
+```bash
+bin/console
+```
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the Immuto project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the code of conduct.
+Immuto is available as open source under the terms of the MIT License.

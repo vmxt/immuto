@@ -60,7 +60,9 @@ module Immuto
       validate_known_immuto_attributes!(normalized_attributes)
 
       self.class.attributes.each do |attribute|
-        instance_variable_set("@#{attribute.name}", immuto_value_for(attribute, normalized_attributes))
+        value = immuto_value_for(attribute, normalized_attributes)
+        attribute.validate(value)
+        instance_variable_set("@#{attribute.name}", value)
       end
 
       freeze
@@ -157,9 +159,12 @@ module Immuto
       private
 
       def build_immuto_attribute(name, options)
-        return Attribute.new(name:, default: options[:default]) if options.key?(:default)
+        attribute_options = { name: }
+        attribute_options[:default] = options[:default] if options.key?(:default)
+        attribute_options[:validator] = options[:validate] if options.key?(:validate)
+        attribute_options[:message] = options[:message] if options.key?(:message)
 
-        Attribute.new(name:)
+        Attribute.new(**attribute_options)
       end
 
       def inherited_immuto_attributes
@@ -169,7 +174,7 @@ module Immuto
       end
 
       def validate_immuto_attribute_options!(options)
-        unknown = options.keys - [:default]
+        unknown = options.keys - %i[default message validate]
         return if unknown.empty?
 
         raise ArgumentError, "unknown attribute option: #{unknown.first.inspect}"

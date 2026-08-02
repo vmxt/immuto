@@ -253,6 +253,99 @@ RSpec.describe Immuto do
     expect(user.active).to be(true)
   end
 
+  it "validates attributes during initialization" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, validate: ->(value) { value >= 0 }
+    end
+
+    expect(klass.new(age: 24).age).to eq(24)
+
+    expect { klass.new(age: -1) }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
+  it "uses custom validation messages" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age,
+                validate: ->(value) { value >= 0 },
+                message: "must be greater than or equal to 0"
+    end
+
+    expect { klass.new(age: -1) }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age: must be greater than or equal to 0")
+  end
+
+  it "validates default values" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :score,
+                default: -1,
+                validate: ->(value) { value >= 0 }
+    end
+
+    expect { klass.new }
+      .to raise_error(Immuto::ValidationError, "validation failed for :score")
+  end
+
+  it "validates updates made with with" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, validate: ->(value) { value >= 0 }
+    end
+
+    user = klass.new(age: 24)
+
+    expect { user.with(age: -1) }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
+  it "validates updates made with with_path" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name, validate: ->(value) { !value.empty? }
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    account = account_class.new(profile: profile_class.new(display_name: "Jeff"))
+
+    expect { account.with_path(:profile, :display_name, "") }
+      .to raise_error(Immuto::ValidationError, "validation failed for :display_name")
+  end
+
+  it "validates objects built from hashes" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, validate: ->(value) { value >= 0 }
+    end
+
+    expect { klass.from_h(age: -1) }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
+  it "wraps validator exceptions in validation errors" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, validate: ->(value) { value >= 0 }
+    end
+
+    expect { klass.new(age: nil) }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
   it "validates hashes used to build immutable objects" do
     expect { user_class.from_h(name: "Jeff") }
       .to raise_error(Immuto::MissingAttributeError, "missing attribute: :age")
@@ -376,6 +469,16 @@ RSpec.describe Immuto do
         attribute :name, type: String
       end
     end.to raise_error(ArgumentError, "unknown attribute option: :type")
+  end
+
+  it "raises when validate is not callable" do
+    expect do
+      Class.new do
+        include Immuto
+
+        attribute :age, validate: true
+      end
+    end.to raise_error(ArgumentError, "validate must respond to call")
   end
 
   it "ignores duplicate attribute declarations" do

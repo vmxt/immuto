@@ -30,6 +30,15 @@ module Immuto
     end
   end
 
+  # Raised when an attribute value does not pass its declared validation.
+  class ValidationError < Error
+    def initialize(attribute, message = nil)
+      detail = message ? ": #{message}" : ""
+
+      super("validation failed for #{attribute.inspect}#{detail}")
+    end
+  end
+
   def self.included(base)
     base.include(Immutable)
   end

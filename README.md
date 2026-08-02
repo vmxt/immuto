@@ -113,6 +113,40 @@ end
 
 Use callable defaults for values that should be fresh for each instance.
 
+## Validation
+
+Use `validate:` to reject invalid values.
+
+```ruby
+class User
+  include Immuto
+
+  attribute :name
+  attribute :age, validate: ->(value) { value >= 0 }
+end
+
+User.new(name: "Jeff", age: -1)
+# raises Immuto::ValidationError
+```
+
+Use `message:` to customize the error.
+
+```ruby
+class User
+  include Immuto
+
+  attribute :age,
+            validate: ->(value) { value >= 0 },
+            message: "must be greater than or equal to 0"
+end
+
+User.new(age: -1)
+# raises Immuto::ValidationError:
+# validation failed for :age: must be greater than or equal to 0
+```
+
+Validation runs whenever Immuto builds a new object, including `new`, `with`, `with_path`, and `from_h`.
+
 ## Immutability
 
 Objects are frozen after initialization.

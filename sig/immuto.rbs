@@ -16,12 +16,17 @@ module Immuto
     def initialize: (untyped attribute) -> void
   end
 
+  class ValidationError < Error
+    def initialize: (untyped attribute, ?String? message) -> void
+  end
+
   class Attribute
     attr_reader name: Symbol
 
-    def initialize: (name: String | Symbol, ?default: untyped) -> void
+    def initialize: (name: String | Symbol, ?default: untyped, ?validator: untyped, ?message: String?) -> void
     def default?: () -> bool
     def default_value: () -> untyped
+    def validate: (untyped value) -> nil
     def ==: (untyped other) -> bool
     def eql?: (untyped other) -> bool
     def hash: () -> Integer
@@ -38,7 +43,7 @@ module Immuto
     def inspect: () -> String
 
     module ClassMethods
-      def attribute: (String | Symbol name, ?default: untyped) -> Immuto::Attribute
+      def attribute: (String | Symbol name, ?default: untyped, ?validate: untyped, ?message: String?) -> Immuto::Attribute
       def attributes: () -> Array[Immuto::Attribute]
       def from_h: (untyped attributes) -> untyped
       def attribute_names: () -> Array[Symbol]

@@ -20,6 +20,10 @@ module Immuto
     def initialize: (untyped attribute, ?String? message) -> void
   end
 
+  class DiffError < Error
+    def initialize: (untyped left, untyped right) -> void
+  end
+
   class Attribute
     attr_reader name: Symbol
 
@@ -37,6 +41,7 @@ module Immuto
     def with_path: (*untyped path_and_value) -> instance
     def to_h: () -> Hash[Symbol, untyped]
     def to_json: (*untyped args) -> String
+    def diff: (untyped other) -> Hash[Symbol, untyped]
     def ==: (untyped other) -> bool
     def eql?: (untyped other) -> bool
     def hash: () -> Integer

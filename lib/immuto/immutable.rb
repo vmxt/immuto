@@ -38,6 +38,17 @@ module Immuto
       JSON.generate(to_h, *)
     end
 
+    def diff(other)
+      raise DiffError.new(self, other) unless other.instance_of?(self.class)
+
+      immuto_values.each_with_object({}) do |(name, value), changes|
+        other_value = other.__send__(:immuto_values).fetch(name)
+        diff = immuto_diff_value(value, other_value)
+
+        changes[name] = diff unless diff.empty?
+      end
+    end
+
     def ==(other)
       other.instance_of?(self.class) && other.__send__(:immuto_values) == immuto_values
     end
@@ -104,6 +115,17 @@ module Immuto
       return value.transform_values { |nested_value| immuto_serializable_value(nested_value) } if value.is_a?(Hash)
 
       value
+    end
+
+    def immuto_diff_value(left, right)
+      return {} if left == right
+      return left.diff(right) if immuto_nested_diffable?(left, right)
+
+      { from: left, to: right }
+    end
+
+    def immuto_nested_diffable?(left, right)
+      left.is_a?(Immutable) && right.instance_of?(left.class)
     end
 
     def immuto_value_for(attribute, attributes)

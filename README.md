@@ -254,6 +254,40 @@ profile = Profile.from_h(display_name: "Ada", timezone: "UTC")
 account = Account.from_h(profile: profile, plan: "free")
 ```
 
+## Diffing
+
+Use `diff` to compare two objects of the same class.
+
+```ruby
+user = User.new(name: "Jeff", age: 24)
+updated = user.with(age: 25)
+
+user.diff(updated)
+#=> {
+#     age: { from: 24, to: 25 }
+#   }
+```
+
+Nested Immuto objects are diffed recursively.
+
+```ruby
+account.diff(updated_account)
+#=> {
+#     profile: {
+#       display_name: { from: "Jeff", to: "Ada" }
+#     }
+#   }
+```
+
+Arrays and hashes are compared by value.
+
+Diffing requires two objects of the same class.
+
+```ruby
+user.diff(Object.new)
+# raises Immuto::DiffError
+```
+
 ## Equality
 
 Two Immuto objects are equal when they have the same class and the same attribute values.

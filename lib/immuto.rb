@@ -39,6 +39,13 @@ module Immuto
     end
   end
 
+  # Raised when two objects cannot be diffed together.
+  class DiffError < Error
+    def initialize(left, right)
+      super("cannot diff #{left.class} with #{right.class}")
+    end
+  end
+
   def self.included(base)
     base.include(Immutable)
   end

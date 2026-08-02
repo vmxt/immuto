@@ -232,6 +232,133 @@ RSpec.describe Immuto do
     expect(JSON.parse(user.to_json)).to eq("name" => "Jeff", "age" => 24)
   end
 
+  it "returns an empty diff for equal objects" do
+    user = user_class.new(name: "Jeff", age: 24)
+    same_user = user_class.new(name: "Jeff", age: 24)
+
+    expect(user.diff(same_user)).to eq({})
+  end
+
+  it "diffs changed top-level attributes" do
+    user = user_class.new(name: "Jeff", age: 24)
+    updated = user.with(age: 25)
+
+    expect(user.diff(updated)).to eq(
+      age: { from: 24, to: 25 }
+    )
+  end
+
+  it "diffs multiple changed attributes" do
+    user = user_class.new(name: "Jeff", age: 24)
+    updated = user.with(name: "Ada", age: 25)
+
+    expect(user.diff(updated)).to eq(
+      name: { from: "Jeff", to: "Ada" },
+      age: { from: 24, to: 25 }
+    )
+  end
+
+  it "diffs nested immutable objects" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+      attribute :timezone
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+      attribute :plan
+    end
+
+    account = account_class.new(
+      profile: profile_class.new(display_name: "Jeff", timezone: "UTC"),
+      plan: "free"
+    )
+    updated = account.with_path(:profile, :display_name, "Ada")
+
+    expect(account.diff(updated)).to eq(
+      profile: {
+        display_name: { from: "Jeff", to: "Ada" }
+      }
+    )
+  end
+
+  it "diffs deeper nested immutable objects" do
+    address_class = Class.new do
+      include Immuto
+
+      attribute :city
+    end
+
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :address
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    account = account_class.new(
+      profile: profile_class.new(
+        address: address_class.new(city: "Manila")
+      )
+    )
+    updated = account.with_path(:profile, :address, :city, "Cebu")
+
+    expect(account.diff(updated)).to eq(
+      profile: {
+        address: {
+          city: { from: "Manila", to: "Cebu" }
+        }
+      }
+    )
+  end
+
+  it "diffs arrays and hashes by value" do
+    post_class = Class.new do
+      include Immuto
+
+      attribute :tags
+      attribute :meta
+    end
+
+    post = post_class.new(tags: %w[ruby], meta: { published: false })
+    updated = post.with(tags: %w[ruby immutable], meta: { published: true })
+
+    expect(post.diff(updated)).to eq(
+      tags: { from: %w[ruby], to: %w[ruby immutable] },
+      meta: { from: { published: false }, to: { published: true } }
+    )
+  end
+
+  it "raises when diffing a different object type" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect { user.diff(Object.new) }
+      .to raise_error(Immuto::DiffError, "cannot diff #{user_class} with Object")
+  end
+
+  it "raises when diffing a different immutable class" do
+    other_class = Class.new do
+      include Immuto
+
+      attribute :name
+      attribute :age
+    end
+    user = user_class.new(name: "Jeff", age: 24)
+    other = other_class.new(name: "Jeff", age: 24)
+
+    expect { user.diff(other) }
+      .to raise_error(Immuto::DiffError, "cannot diff #{user_class} with #{other_class}")
+  end
+
   it "builds immutable objects from hashes" do
     user = user_class.from_h("name" => "Jeff", "age" => 24)
 

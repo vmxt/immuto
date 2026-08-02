@@ -24,6 +24,10 @@ module Immuto
     def initialize: (untyped left, untyped right) -> void
   end
 
+  class MergeError < Error
+    def initialize: (untyped left, untyped right) -> void
+  end
+
   class Attribute
     attr_reader name: Symbol
 
@@ -42,6 +46,7 @@ module Immuto
     def to_h: () -> Hash[Symbol, untyped]
     def to_json: (*untyped args) -> String
     def diff: (untyped other) -> Hash[Symbol, untyped]
+    def merge: (untyped other) -> instance
     def ==: (untyped other) -> bool
     def eql?: (untyped other) -> bool
     def hash: () -> Integer

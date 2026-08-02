@@ -359,6 +359,153 @@ RSpec.describe Immuto do
       .to raise_error(Immuto::DiffError, "cannot diff #{user_class} with #{other_class}")
   end
 
+  it "merges objects of the same class into a new immutable object" do
+    base = user_class.new(name: "Jeff", age: 24)
+    incoming = user_class.new(name: "Jeff", age: 25)
+    merged = base.merge(incoming)
+
+    expect(merged).to eq(incoming)
+    expect(merged).not_to be(base)
+    expect(merged).not_to be(incoming)
+    expect(merged).to be_frozen
+  end
+
+  it "uses incoming values when merging changed top-level attributes" do
+    base = user_class.new(name: "Jeff", age: 24)
+    incoming = user_class.new(name: "Ada", age: 25)
+
+    merged = base.merge(incoming)
+
+    expect(merged.name).to eq("Ada")
+    expect(merged.age).to eq(25)
+    expect(base.name).to eq("Jeff")
+    expect(base.age).to eq(24)
+  end
+
+  it "recursively merges nested immutable objects" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+      attribute :timezone
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+      attribute :plan
+    end
+
+    base = account_class.new(
+      profile: profile_class.new(display_name: "Jeff", timezone: "UTC"),
+      plan: "free"
+    )
+    incoming = account_class.new(
+      profile: profile_class.new(display_name: "Ada", timezone: "UTC"),
+      plan: "pro"
+    )
+
+    merged = base.merge(incoming)
+
+    expect(merged.profile.display_name).to eq("Ada")
+    expect(merged.profile.timezone).to eq("UTC")
+    expect(merged.profile).not_to be(base.profile)
+    expect(merged.plan).to eq("pro")
+  end
+
+  it "recursively merges deeper nested immutable objects" do
+    address_class = Class.new do
+      include Immuto
+
+      attribute :city
+      attribute :country
+    end
+
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :address
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    base = account_class.new(
+      profile: profile_class.new(
+        address: address_class.new(city: "Manila", country: "PH")
+      )
+    )
+    incoming = account_class.new(
+      profile: profile_class.new(
+        address: address_class.new(city: "Cebu", country: "PH")
+      )
+    )
+
+    merged = base.merge(incoming)
+
+    expect(merged.profile.address.city).to eq("Cebu")
+    expect(merged.profile.address.country).to eq("PH")
+    expect(merged.profile.address).not_to be(base.profile.address)
+  end
+
+  it "replaces arrays and hashes by incoming value when merging" do
+    post_class = Class.new do
+      include Immuto
+
+      attribute :tags
+      attribute :meta
+    end
+
+    base = post_class.new(tags: %w[ruby], meta: { published: false })
+    incoming = post_class.new(tags: %w[ruby immutable], meta: { published: true })
+
+    merged = base.merge(incoming)
+
+    expect(merged.tags).to eq(%w[ruby immutable])
+    expect(merged.meta).to eq(published: true)
+  end
+
+  it "validates merged values" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, validate: ->(value) { value >= 0 }
+    end
+
+    base = klass.new(age: 24)
+    incoming = klass.allocate
+    incoming.instance_variable_set(:@age, -1)
+    incoming.freeze
+
+    expect { base.merge(incoming) }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
+  it "raises when merging a different object type" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect { user.merge(Object.new) }
+      .to raise_error(Immuto::MergeError, "cannot merge #{user_class} with Object")
+  end
+
+  it "raises when merging a different immutable class" do
+    other_class = Class.new do
+      include Immuto
+
+      attribute :name
+      attribute :age
+    end
+    user = user_class.new(name: "Jeff", age: 24)
+    other = other_class.new(name: "Jeff", age: 24)
+
+    expect { user.merge(other) }
+      .to raise_error(Immuto::MergeError, "cannot merge #{user_class} with #{other_class}")
+  end
+
   it "builds immutable objects from hashes" do
     user = user_class.from_h("name" => "Jeff", "age" => 24)
 

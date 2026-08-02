@@ -288,6 +288,40 @@ user.diff(Object.new)
 # raises Immuto::DiffError
 ```
 
+## Merging
+
+Use `merge` to combine two objects of the same class.
+
+```ruby
+base = User.new(name: "Jeff", age: 24)
+incoming = User.new(name: "Jeff", age: 25)
+
+merged = base.merge(incoming)
+
+merged.age
+#=> 25
+```
+
+The incoming object wins for changed values. `merge` returns a new frozen object and leaves both inputs unchanged.
+
+Nested Immuto objects are merged recursively.
+
+```ruby
+merged = account.merge(incoming_account)
+
+merged.profile.display_name
+#=> "Ada"
+```
+
+Arrays and hashes are replaced by the incoming value.
+
+Merging requires two objects of the same class.
+
+```ruby
+user.merge(Object.new)
+# raises Immuto::MergeError
+```
+
 ## Equality
 
 Two Immuto objects are equal when they have the same class and the same attribute values.

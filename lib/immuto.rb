@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "immuto/attribute"
+require_relative "immuto/diff"
+require_relative "immuto/merge"
 require_relative "immuto/immutable"
 require_relative "immuto/version"
 
@@ -43,6 +45,13 @@ module Immuto
   class DiffError < Error
     def initialize(left, right)
       super("cannot diff #{left.class} with #{right.class}")
+    end
+  end
+
+  # Raised when two objects cannot be merged together.
+  class MergeError < Error
+    def initialize(left, right)
+      super("cannot merge #{left.class} with #{right.class}")
     end
   end
 

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module Immuto
   # Instance and class-level behavior mixed into classes that include Immuto.
   module Immutable
@@ -26,6 +28,14 @@ module Immuto
       path = path_and_value.map { |key| normalize_immuto_attribute_key(key) }
 
       immuto_with_path(path, value)
+    end
+
+    def to_h
+      immuto_values.transform_values { |value| immuto_serializable_value(value) }
+    end
+
+    def to_json(*)
+      JSON.generate(to_h, *)
     end
 
     def ==(other)
@@ -86,6 +96,14 @@ module Immuto
       with(**{ attribute => nested_value.with_path(*path.drop(1), value) })
     end
 
+    def immuto_serializable_value(value)
+      return value.to_h if value.is_a?(Immutable)
+      return value.map { |item| immuto_serializable_value(item) } if value.is_a?(Array)
+      return value.transform_values { |nested_value| immuto_serializable_value(nested_value) } if value.is_a?(Hash)
+
+      value
+    end
+
     def immuto_value_for(attribute, attributes)
       return attributes[attribute.name] if attributes.key?(attribute.name)
       return attribute.default_value if attribute.default?
@@ -117,6 +135,15 @@ module Immuto
 
       def attributes
         immuto_attributes.dup.freeze
+      end
+
+      def from_h(attributes)
+        raise ArgumentError, "from_h requires a hash-like object" unless attributes&.respond_to?(:to_h)
+
+        attributes = attributes.to_h
+        raise ArgumentError, "from_h requires a hash-like object" unless attributes.is_a?(Hash)
+
+        new(**attributes)
       end
 
       def attribute_names

@@ -174,6 +174,52 @@ updated = account.with_path(:profile, :settings, :theme, "dark")
 
 Objects along the updated path are rebuilt. Unchanged values are reused.
 
+## Serialization
+
+Use `to_h` to turn an immutable object into a plain Ruby hash.
+
+```ruby
+user = User.new(name: "Jeff", age: 24)
+
+user.to_h
+#=> { name: "Jeff", age: 24 }
+```
+
+Nested Immuto objects are serialized as nested hashes.
+
+```ruby
+account.to_h
+#=> {
+#     profile: { display_name: "Ada", timezone: "UTC" },
+#     plan: "free"
+#   }
+```
+
+Use `to_json` when you need a JSON string.
+
+```ruby
+user.to_json
+#=> "{\"name\":\"Jeff\",\"age\":24}"
+```
+
+Use `from_h` to build an immutable object from a hash.
+
+```ruby
+user = User.from_h("name" => "Jeff", "age" => 24)
+
+user.name
+#=> "Jeff"
+```
+
+`from_h` applies defaults and raises the same missing or unknown attribute errors as `new`.
+
+Nested hashes are not converted into nested classes automatically. Build nested objects first when you need them.
+
+```ruby
+profile = Profile.from_h(display_name: "Ada", timezone: "UTC")
+account = Account.from_h(profile: profile, plan: "free")
+```
+
 ## Equality
 
 Two Immuto objects are equal when they have the same class and the same attribute values.

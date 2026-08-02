@@ -170,6 +170,102 @@ RSpec.describe Immuto do
     expect(updated.age).to eq(25)
   end
 
+  it "serializes declared attributes to a hash" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect(user.to_h).to eq(name: "Jeff", age: 24)
+  end
+
+  it "serializes nested immutable objects to hashes" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+      attribute :plan
+    end
+
+    account = account_class.new(
+      profile: profile_class.new(display_name: "Jeff"),
+      plan: "free"
+    )
+
+    expect(account.to_h).to eq(
+      profile: { display_name: "Jeff" },
+      plan: "free"
+    )
+  end
+
+  it "serializes arrays and hashes containing immutable objects" do
+    tag_class = Class.new do
+      include Immuto
+
+      attribute :name
+    end
+
+    post_class = Class.new do
+      include Immuto
+
+      attribute :tags
+      attribute :meta
+    end
+
+    post = post_class.new(
+      tags: [tag_class.new(name: "ruby")],
+      meta: { owner: tag_class.new(name: "jeff") }
+    )
+
+    expect(post.to_h).to eq(
+      tags: [{ name: "ruby" }],
+      meta: { owner: { name: "jeff" } }
+    )
+  end
+
+  it "serializes declared attributes to json" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect(JSON.parse(user.to_json)).to eq("name" => "Jeff", "age" => 24)
+  end
+
+  it "builds immutable objects from hashes" do
+    user = user_class.from_h("name" => "Jeff", "age" => 24)
+
+    expect(user.name).to eq("Jeff")
+    expect(user.age).to eq(24)
+    expect(user).to be_frozen
+  end
+
+  it "applies defaults when building from hashes" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :name
+      attribute :active, default: true
+    end
+
+    user = klass.from_h(name: "Jeff")
+
+    expect(user.active).to be(true)
+  end
+
+  it "validates hashes used to build immutable objects" do
+    expect { user_class.from_h(name: "Jeff") }
+      .to raise_error(Immuto::MissingAttributeError, "missing attribute: :age")
+
+    expect { user_class.from_h(name: "Jeff", age: 24, email: "jeff@example.com") }
+      .to raise_error(Immuto::UnknownAttributeError, "unknown attribute: :email")
+  end
+
+  it "raises when from_h receives a non-hash-like value" do
+    expect { user_class.from_h(nil) }
+      .to raise_error(ArgumentError, "from_h requires a hash-like object")
+  end
+
   it "raises when with_path does not receive a path and value" do
     user = user_class.new(name: "Jeff", age: 24)
 

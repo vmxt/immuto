@@ -16,6 +16,13 @@ module Immuto
     end
   end
 
+  # Raised when a declared attribute is missing and has no default.
+  class MissingAttributeError < Error
+    def initialize(attribute)
+      super("missing attribute: #{attribute.inspect}")
+    end
+  end
+
   def self.included(base)
     base.include(Immutable)
   end

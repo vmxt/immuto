@@ -28,14 +28,20 @@ module Immuto
       [self.class, immuto_values].hash
     end
 
+    def inspect
+      attributes = immuto_values.map { |name, value| "#{name}=#{value.inspect}" }.join(" ")
+
+      "#<#{self.class} #{attributes}>"
+    end
+
     private
 
     def initialize(**attributes)
       normalized_attributes = normalize_immuto_attributes(attributes)
       validate_known_immuto_attributes!(normalized_attributes)
 
-      self.class.attribute_names.each do |name|
-        instance_variable_set("@#{name}", normalized_attributes[name])
+      self.class.attributes.each do |attribute|
+        instance_variable_set("@#{attribute.name}", immuto_value_for(attribute, normalized_attributes))
       end
 
       freeze
@@ -59,6 +65,13 @@ module Immuto
       raise UnknownAttributeError, key
     end
 
+    def immuto_value_for(attribute, attributes)
+      return attributes[attribute.name] if attributes.key?(attribute.name)
+      return attribute.default_value if attribute.default?
+
+      raise MissingAttributeError, attribute.name
+    end
+
     def validate_known_immuto_attributes!(attributes)
       unknown = attributes.keys - self.class.attribute_names
       raise UnknownAttributeError, unknown.first if unknown.any?
@@ -66,11 +79,14 @@ module Immuto
 
     # DSL methods available on classes that include Immuto.
     module ClassMethods
-      def attribute(name)
-        attribute = Attribute.new(name:)
+      def attribute(name, **options)
+        validate_immuto_attribute_options!(options)
+
+        attribute = build_immuto_attribute(name, options)
         validate_immuto_attribute_name!(attribute.name)
 
-        return attribute if attribute_names.include?(attribute.name)
+        existing_attribute = immuto_attributes.find { |declared| declared.name == attribute.name }
+        return existing_attribute if existing_attribute
 
         immuto_attributes << attribute
         attr_reader attribute.name
@@ -92,10 +108,23 @@ module Immuto
 
       private
 
+      def build_immuto_attribute(name, options)
+        return Attribute.new(name:, default: options[:default]) if options.key?(:default)
+
+        Attribute.new(name:)
+      end
+
       def inherited_immuto_attributes
         return [] unless superclass.respond_to?(:attributes)
 
         superclass.attributes.dup
+      end
+
+      def validate_immuto_attribute_options!(options)
+        unknown = options.keys - [:default]
+        return if unknown.empty?
+
+        raise ArgumentError, "unknown attribute option: #{unknown.first.inspect}"
       end
 
       def validate_immuto_attribute_name!(name)

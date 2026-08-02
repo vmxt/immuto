@@ -2,7 +2,7 @@
 
 Immuto helps you create small immutable value objects in Ruby.
 
-It is framework-agnostic and works with plain Ruby classes. Include `Immuto`, declare attributes, and every instance becomes a frozen object with reader methods, value-based equality, and safe copy updates.
+It is framework-agnostic and works with plain Ruby classes. Include `Immuto`, declare attributes, and every instance becomes a frozen object with reader methods, defaults, value-based equality, and safe copy updates.
 
 ## Installation
 
@@ -69,6 +69,50 @@ post.respond_to?(:title=)
 #=> false
 ```
 
+Attributes without defaults are required:
+
+```ruby
+Post.new(title: "Hello")
+# raises Immuto::MissingAttributeError
+```
+
+Passing `nil` explicitly is allowed:
+
+```ruby
+Post.new(title: "Hello", published: nil)
+```
+
+## Defaults
+
+Use `default:` for optional attributes.
+
+```ruby
+class User
+  include Immuto
+
+  attribute :name
+  attribute :active, default: true
+end
+
+user = User.new(name: "Jeff")
+
+user.active
+#=> true
+```
+
+Callable defaults are evaluated when a new object is created.
+
+```ruby
+class Session
+  include Immuto
+
+  attribute :id, default: -> { SecureRandom.uuid }
+  attribute :tags, default: -> { [] }
+end
+```
+
+Use callable defaults for values that should be fresh for each instance.
+
 ## Immutability
 
 Objects are frozen after initialization.
@@ -108,6 +152,17 @@ User.new(name: "Jeff", email: "jeff@example.com")
 
 user.with(email: "jeff@example.com")
 # raises Immuto::UnknownAttributeError
+```
+
+## Inspecting Objects
+
+`inspect` shows the declared attributes and their values.
+
+```ruby
+user = User.new(name: "Jeff", active: true)
+
+user.inspect
+#=> #<User name="Jeff" active=true>
 ```
 
 ## Development

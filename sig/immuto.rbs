@@ -8,10 +8,16 @@ module Immuto
     def initialize: (untyped attribute) -> void
   end
 
+  class MissingAttributeError < Error
+    def initialize: (untyped attribute) -> void
+  end
+
   class Attribute
     attr_reader name: Symbol
 
-    def initialize: (name: String | Symbol) -> void
+    def initialize: (name: String | Symbol, ?default: untyped) -> void
+    def default?: () -> bool
+    def default_value: () -> untyped
     def ==: (untyped other) -> bool
     def eql?: (untyped other) -> bool
     def hash: () -> Integer
@@ -22,9 +28,10 @@ module Immuto
     def ==: (untyped other) -> bool
     def eql?: (untyped other) -> bool
     def hash: () -> Integer
+    def inspect: () -> String
 
     module ClassMethods
-      def attribute: (String | Symbol name) -> Immuto::Attribute
+      def attribute: (String | Symbol name, ?default: untyped) -> Immuto::Attribute
       def attributes: () -> Array[Immuto::Attribute]
       def attribute_names: () -> Array[Symbol]
     end

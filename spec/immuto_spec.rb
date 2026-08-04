@@ -506,6 +506,132 @@ RSpec.describe Immuto do
       .to raise_error(Immuto::MergeError, "cannot merge #{user_class} with #{other_class}")
   end
 
+  it "captures snapshots of immutable objects" do
+    user = user_class.new(name: "Jeff", age: 24)
+    snapshot = user.snapshot
+
+    expect(snapshot).to be_a(Immuto::Snapshot)
+    expect(snapshot).to be_frozen
+    expect(snapshot.object_class).to be(user_class)
+    expect(snapshot.to_h).to eq(name: "Jeff", age: 24)
+    expect(snapshot.to_h).to be_frozen
+  end
+
+  it "freezes and detaches snapshot data" do
+    post_class = Class.new do
+      include Immuto
+
+      attribute :tags
+    end
+
+    tags = ["ruby"]
+    post = post_class.new(tags:)
+    snapshot = post.snapshot
+
+    tags << "immutable"
+
+    expect(snapshot.to_h).to eq(tags: ["ruby"])
+    expect(snapshot.to_h[:tags]).to be_frozen
+    expect { snapshot.to_h[:tags] << "later" }.to raise_error(FrozenError)
+  end
+
+  it "serializes nested immutable objects inside snapshots" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    account = account_class.new(profile: profile_class.new(display_name: "Jeff"))
+
+    expect(account.snapshot.to_h).to eq(
+      profile: { display_name: "Jeff" }
+    )
+  end
+
+  it "restores immutable objects from snapshots" do
+    user = user_class.new(name: "Jeff", age: 24)
+    restored = user_class.restore(user.snapshot)
+
+    expect(restored).to eq(user)
+    expect(restored).not_to be(user)
+    expect(restored).to be_frozen
+  end
+
+  it "reports changes since a snapshot" do
+    user = user_class.new(name: "Jeff", age: 24)
+    snapshot = user.snapshot
+    updated = user.with(age: 25)
+
+    expect(updated.changes_since(snapshot)).to eq(
+      age: { from: 24, to: 25 }
+    )
+  end
+
+  it "reports nested serialized changes since a snapshot" do
+    profile_class = Class.new do
+      include Immuto
+
+      attribute :display_name
+      attribute :timezone
+    end
+
+    account_class = Class.new do
+      include Immuto
+
+      attribute :profile
+    end
+
+    account = account_class.new(
+      profile: profile_class.new(display_name: "Jeff", timezone: "UTC")
+    )
+    snapshot = account.snapshot
+    updated = account.with_path(:profile, :display_name, "Ada")
+
+    expect(updated.changes_since(snapshot)).to eq(
+      profile: {
+        display_name: { from: "Jeff", to: "Ada" }
+      }
+    )
+  end
+
+  it "returns an empty change set when nothing changed since a snapshot" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect(user.changes_since(user.snapshot)).to eq({})
+  end
+
+  it "compares snapshots by class and data" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect(user.snapshot).to eq(user.snapshot)
+    expect(user.snapshot.hash).to eq(user.snapshot.hash)
+  end
+
+  it "raises when restoring from a non-snapshot" do
+    expect { user_class.restore({}) }
+      .to raise_error(Immuto::SnapshotError, "expected Immuto::Snapshot")
+  end
+
+  it "raises when restoring a snapshot for another class" do
+    other_class = Class.new do
+      include Immuto
+
+      attribute :name
+      attribute :age
+    end
+    user = user_class.new(name: "Jeff", age: 24)
+
+    expect { other_class.restore(user.snapshot) }
+      .to raise_error(Immuto::SnapshotError, "snapshot belongs to #{user_class}, not #{other_class}")
+  end
+
   it "builds immutable objects from hashes" do
     user = user_class.from_h("name" => "Jeff", "age" => 24)
 

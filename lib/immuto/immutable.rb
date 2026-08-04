@@ -6,6 +6,7 @@ module Immuto
   # Instance and class-level behavior mixed into classes that include Immuto.
   module Immutable
     include Diff
+    include History
     include Merge
 
     VALID_ATTRIBUTE_NAME = /\A[a-z_]\w*\z/
@@ -13,6 +14,7 @@ module Immuto
 
     def self.included(base)
       base.extend(ClassMethods)
+      base.extend(History::ClassMethods)
     end
 
     def with(**changes)

@@ -322,6 +322,52 @@ user.merge(Object.new)
 # raises Immuto::MergeError
 ```
 
+## Snapshots
+
+Use `snapshot` to capture the serialized state of an immutable object.
+
+```ruby
+user = User.new(name: "Jeff", age: 24)
+snapshot = user.snapshot
+
+snapshot.to_h
+#=> { name: "Jeff", age: 24 }
+```
+
+Snapshots are frozen and detached from later changes to mutable attribute values.
+
+Use `restore` to build an object from a snapshot.
+
+```ruby
+restored = User.restore(snapshot)
+
+restored.age
+#=> 24
+```
+
+Use `changes_since` to compare an object with an earlier snapshot.
+
+```ruby
+updated = user.with(age: 25)
+
+updated.changes_since(snapshot)
+#=> {
+#     age: { from: 24, to: 25 }
+#   }
+```
+
+Nested Immuto objects are stored as nested hashes in snapshots.
+
+```ruby
+account.snapshot.to_h
+#=> {
+#     profile: { display_name: "Ada", timezone: "UTC" },
+#     plan: "free"
+#   }
+```
+
+`changes_since` compares serialized state, so nested changes are reported cleanly. `restore` does not infer nested classes automatically; build nested objects first when restoring nested state.
+
 ## Equality
 
 Two Immuto objects are equal when they have the same class and the same attribute values.

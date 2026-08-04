@@ -28,6 +28,20 @@ module Immuto
     def initialize: (untyped left, untyped right) -> void
   end
 
+  class SnapshotError < Error
+  end
+
+  class Snapshot
+    attr_reader object_class: Class
+    attr_reader data: Hash[untyped, untyped]
+
+    def initialize: (object_class: Class, data: Hash[untyped, untyped]) -> void
+    def to_h: () -> Hash[untyped, untyped]
+    def ==: (untyped other) -> bool
+    def eql?: (untyped other) -> bool
+    def hash: () -> Integer
+  end
+
   class Attribute
     attr_reader name: Symbol
 
@@ -47,6 +61,8 @@ module Immuto
     def to_json: (*untyped args) -> String
     def diff: (untyped other) -> Hash[Symbol, untyped]
     def merge: (untyped other) -> instance
+    def snapshot: () -> Immuto::Snapshot
+    def changes_since: (Immuto::Snapshot snapshot) -> Hash[Symbol, untyped]
     def ==: (untyped other) -> bool
     def eql?: (untyped other) -> bool
     def hash: () -> Integer
@@ -56,6 +72,7 @@ module Immuto
       def attribute: (String | Symbol name, ?default: untyped, ?validate: untyped, ?message: String?) -> Immuto::Attribute
       def attributes: () -> Array[Immuto::Attribute]
       def from_h: (untyped attributes) -> untyped
+      def restore: (Immuto::Snapshot snapshot) -> untyped
       def attribute_names: () -> Array[Symbol]
     end
   end

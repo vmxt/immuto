@@ -1,242 +1,80 @@
 # Immuto
 
-Immuto is a tiny Ruby gem for making little objects that do not mutate.
+Immuto is a tiny Ruby helper for objects that stay put.
 
-Basically: you define the fields once, create the object, and then any "change"
-gives you a new copy instead of messing with the old one.
+You tell an object what bits it has, Immuto freezes it, and any update gives you
+a fresh copy. The old one stays exactly how it was.
 
-I made this because sometimes I want plain Ruby objects that feel predictable
-without pulling in a whole framework or writing the same boilerplate again.
+Made for side-project code where simple, calm little value objects feel nicer
+than dragging in a whole framework.
 
-## The vibe
+## The Vibe
 
-- plain Ruby
-- include one module
+- one `include Immuto`
 - declare a few attributes
-- get frozen objects
-- update by copying with `with`
-- turn things into hashes or JSON when needed
-- diff, merge, and snapshot objects if you want to get fancy
-
-Not a huge architecture thing. Just a small helper for value-object style code.
+- frozen objects by default
+- update with `with`
+- nested updates with `with_path`
+- hash, JSON, diff, merge, and snapshots when needed
 
 ## Install
-
-Add it to your `Gemfile`:
 
 ```ruby
 gem "immuto"
 ```
 
-Then:
-
 ```bash
 bundle install
 ```
 
-## Tiny example
+## Tiny Taste
 
 ```ruby
-class User
+class Trinket
   include Immuto
 
-  attribute :name
-  attribute :age
+  attribute :label
+  attribute :aura, default: "glowy"
+  attribute :rarity, validate: ->(value) { value >= 1 }
 end
 
-user = User.new(name: "Jeff", age: 24)
-older = user.with(age: 25)
+first = Trinket.new(label: "pocket star", rarity: 2)
+upgraded = first.with(rarity: 3)
 
-user.age
-#=> 24
+first.rarity
+#=> 2
 
-older.age
-#=> 25
+upgraded.to_h
+#=> { label: "pocket star", aura: "glowy", rarity: 3 }
 ```
 
-The first object stays the same. `with` returns a new frozen copy.
+`first` did not change. `upgraded` is a new frozen object.
 
-## Defaults
+## Extra Bits
 
 ```ruby
-class Account
+snapshot = first.snapshot
+
+first.diff(upgraded)
+#=> { rarity: { from: 2, to: 3 } }
+
+restored = Trinket.restore(snapshot)
+```
+
+Nested objects can be nudged too:
+
+```ruby
+class Shelf
   include Immuto
 
-  attribute :name
-  attribute :active, default: true
+  attribute :favorite
 end
 
-account = Account.new(name: "side project")
-
-account.active
-#=> true
+shelf = Shelf.new(favorite: first)
+updated_shelf = shelf.with_path(:favorite, :aura, "moonlit")
 ```
 
-If the default should be fresh each time, use a lambda:
-
-```ruby
-class Session
-  include Immuto
-
-  attribute :id, default: -> { SecureRandom.uuid }
-  attribute :tags, default: -> { [] }
-end
-```
-
-## Simple checks
-
-You can add a small validation lambda:
-
-```ruby
-class User
-  include Immuto
-
-  attribute :name
-  attribute :age, validate: ->(value) { value >= 0 }
-end
-
-User.new(name: "Jeff", age: -1)
-# raises Immuto::ValidationError
-```
-
-Custom message if you care:
-
-```ruby
-attribute :age,
-          validate: ->(value) { value >= 0 },
-          message: "must be 0 or more"
-```
-
-## Block builder
-
-Sometimes this reads nicer than passing a hash:
-
-```ruby
-user = User.build do
-  name "Jeff"
-  age 24
-end
-```
-
-And you can rebuild from an existing object:
-
-```ruby
-older = user.rebuild do
-  age 25
-end
-```
-
-## Nested updates
-
-For objects inside objects, `with_path` saves a bit of typing:
-
-```ruby
-class Profile
-  include Immuto
-
-  attribute :display_name
-  attribute :timezone
-end
-
-class Account
-  include Immuto
-
-  attribute :profile
-  attribute :plan
-end
-
-account = Account.new(
-  profile: Profile.new(display_name: "Jeff", timezone: "UTC"),
-  plan: "free"
-)
-
-updated = account.with_path(:profile, :display_name, "Ada")
-
-account.profile.display_name
-#=> "Jeff"
-
-updated.profile.display_name
-#=> "Ada"
-```
-
-Only the changed path is rebuilt. The rest stays as-is.
-
-## Hashes and JSON
-
-```ruby
-user = User.new(name: "Jeff", age: 24)
-
-user.to_h
-#=> { name: "Jeff", age: 24 }
-
-user.to_json
-#=> "{\"name\":\"Jeff\",\"age\":24}"
-```
-
-You can also build from a hash:
-
-```ruby
-user = User.from_h("name" => "Jeff", "age" => 24)
-```
-
-Nested hashes are not magically converted into nested classes. Build those
-objects yourself first.
-
-## Diff and merge
-
-Diff shows what changed:
-
-```ruby
-user = User.new(name: "Jeff", age: 24)
-older = user.with(age: 25)
-
-user.diff(older)
-#=> { age: { from: 24, to: 25 } }
-```
-
-Merge takes another object of the same class and lets the incoming values win:
-
-```ruby
-base = User.new(name: "Jeff", age: 24)
-incoming = User.new(name: "Jeff", age: 25)
-
-base.merge(incoming).age
-#=> 25
-```
-
-Nested Immuto objects diff and merge recursively.
-
-## Snapshots
-
-Snapshots are frozen copies of the serialized state:
-
-```ruby
-user = User.new(name: "Jeff", age: 24)
-snapshot = user.snapshot
-
-older = user.with(age: 25)
-
-older.changes_since(snapshot)
-#=> { age: { from: 24, to: 25 } }
-```
-
-You can restore from one too:
-
-```ruby
-restored = User.restore(snapshot)
-```
-
-## Stuff it complains about
-
-Immuto is small, but it does try to catch the obvious mistakes:
-
-- missing required attributes
-- unknown attributes
-- invalid values from `validate:`
-- diffing or merging different classes
-- nested updates through something that is not an Immuto object
-
-## Playing with it locally
+## Local Play
 
 ```bash
 bin/setup
@@ -246,4 +84,4 @@ bin/console
 
 ## License
 
-MIT. Have fun with it.
+MIT. Make something small and useful.

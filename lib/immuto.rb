@@ -5,6 +5,7 @@ require_relative "immuto/diff"
 require_relative "immuto/snapshot"
 require_relative "immuto/history"
 require_relative "immuto/merge"
+require_relative "immuto/builder"
 require_relative "immuto/immutable"
 require_relative "immuto/version"
 

@@ -506,6 +506,144 @@ RSpec.describe Immuto do
       .to raise_error(Immuto::MergeError, "cannot merge #{user_class} with #{other_class}")
   end
 
+  it "builds immutable objects with a yielded builder" do
+    user = user_class.build do |builder|
+      builder.name "Jeff"
+      builder.age 24
+    end
+
+    expect(user.name).to eq("Jeff")
+    expect(user.age).to eq(24)
+    expect(user).to be_frozen
+  end
+
+  it "builds immutable objects with an instance-eval builder" do
+    user = user_class.build do
+      name "Jeff"
+      age 24
+    end
+
+    expect(user.name).to eq("Jeff")
+    expect(user.age).to eq(24)
+  end
+
+  it "builds immutable objects with explicit builder setters" do
+    user = user_class.build do |builder|
+      builder.set(:name, "Jeff")
+      builder.age = 24
+    end
+
+    expect(user.name).to eq("Jeff")
+    expect(user.age).to eq(24)
+  end
+
+  it "applies defaults when building with a builder" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :name
+      attribute :active, default: true
+    end
+
+    user = klass.build do |builder|
+      builder.name "Jeff"
+    end
+
+    expect(user.active).to be(true)
+  end
+
+  it "validates values when building with a builder" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, validate: ->(value) { value >= 0 }
+    end
+
+    expect do
+      klass.build do |builder|
+        builder.age(-1)
+      end
+    end.to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
+  it "raises for missing attributes when building with a builder" do
+    expect do
+      user_class.build do |builder|
+        builder.name "Jeff"
+      end
+    end.to raise_error(Immuto::MissingAttributeError, "missing attribute: :age")
+  end
+
+  it "raises for unknown attributes used in a builder" do
+    expect do
+      user_class.build do |builder|
+        builder.email "jeff@example.com"
+      end
+    end.to raise_error(Immuto::UnknownAttributeError, "unknown attribute: :email")
+  end
+
+  it "raises when a builder block is missing" do
+    expect { user_class.build }
+      .to raise_error(ArgumentError, "builder requires a block")
+  end
+
+  it "rebuilds immutable objects with a builder" do
+    user = user_class.new(name: "Jeff", age: 24)
+    updated = user.rebuild do |builder|
+      builder.age 25
+    end
+
+    expect(user.age).to eq(24)
+    expect(updated.age).to eq(25)
+    expect(updated.name).to eq("Jeff")
+    expect(updated).to be_frozen
+  end
+
+  it "rebuilds immutable objects with an instance-eval builder" do
+    user = user_class.new(name: "Jeff", age: 24)
+    updated = user.rebuild do
+      age 25
+    end
+
+    expect(updated.age).to eq(25)
+  end
+
+  it "allows rebuild builders to read current values" do
+    user = user_class.new(name: "Jeff", age: 24)
+    updated = user.rebuild do |builder|
+      builder.age builder.age + 1
+    end
+
+    expect(updated.age).to eq(25)
+  end
+
+  it "returns itself when rebuild has no changes" do
+    user = user_class.new(name: "Jeff", age: 24)
+
+    rebuilt = user.rebuild do |builder|
+      builder.age
+      nil
+    end
+
+    expect(rebuilt).to be(user)
+  end
+
+  it "validates values when rebuilding with a builder" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, validate: ->(value) { value >= 0 }
+    end
+
+    user = klass.new(age: 24)
+
+    expect do
+      user.rebuild do |builder|
+        builder.age(-1)
+      end
+    end.to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
   it "captures snapshots of immutable objects" do
     user = user_class.new(name: "Jeff", age: 24)
     snapshot = user.snapshot

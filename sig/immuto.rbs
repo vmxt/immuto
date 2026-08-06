@@ -42,6 +42,17 @@ module Immuto
     def hash: () -> Integer
   end
 
+  class Builder
+    attr_reader object_class: Class
+
+    def initialize: (object_class: Class, ?values: Hash[untyped, untyped]) -> void
+    def apply: () { (Immuto::Builder) -> untyped } -> Immuto::Builder
+             | () { () -> untyped } -> Immuto::Builder
+    def values: () -> Hash[Symbol, untyped]
+    def changes: () -> Hash[Symbol, untyped]
+    def set: (String | Symbol name, untyped value) -> untyped
+  end
+
   class Attribute
     attr_reader name: Symbol
 
@@ -63,6 +74,8 @@ module Immuto
     def merge: (untyped other) -> instance
     def snapshot: () -> Immuto::Snapshot
     def changes_since: (Immuto::Snapshot snapshot) -> Hash[Symbol, untyped]
+    def rebuild: () { (Immuto::Builder) -> untyped } -> instance
+               | () { () -> untyped } -> instance
     def ==: (untyped other) -> bool
     def eql?: (untyped other) -> bool
     def hash: () -> Integer
@@ -71,6 +84,8 @@ module Immuto
     module ClassMethods
       def attribute: (String | Symbol name, ?default: untyped, ?validate: untyped, ?message: String?) -> Immuto::Attribute
       def attributes: () -> Array[Immuto::Attribute]
+      def build: () { (Immuto::Builder) -> untyped } -> untyped
+               | () { () -> untyped } -> untyped
       def from_h: (untyped attributes) -> untyped
       def restore: (Immuto::Snapshot snapshot) -> untyped
       def attribute_names: () -> Array[Symbol]

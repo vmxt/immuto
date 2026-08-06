@@ -5,6 +5,7 @@ require "json"
 module Immuto
   # Instance and class-level behavior mixed into classes that include Immuto.
   module Immutable
+    include BuilderDSL
     include Diff
     include History
     include Merge
@@ -14,6 +15,7 @@ module Immuto
 
     def self.included(base)
       base.extend(ClassMethods)
+      base.extend(BuilderDSL::ClassMethods)
       base.extend(History::ClassMethods)
     end
 

@@ -147,6 +147,53 @@ User.new(age: -1)
 
 Validation runs whenever Immuto builds a new object, including `new`, `with`, `with_path`, and `from_h`.
 
+## Builders
+
+Use `build` when you prefer setting attributes in a block.
+
+```ruby
+user = User.build do |u|
+  u.name "Jeff"
+  u.age 24
+end
+
+user.age
+#=> 24
+```
+
+You can also use an instance-eval style block.
+
+```ruby
+user = User.build do
+  name "Jeff"
+  age 24
+end
+```
+
+Use `rebuild` to create an updated copy with a builder.
+
+```ruby
+updated = user.rebuild do |u|
+  u.age 25
+end
+
+user.age
+#=> 24
+
+updated.age
+#=> 25
+```
+
+Builders can read the current value during `rebuild`.
+
+```ruby
+older_user = user.rebuild do |u|
+  u.age u.age + 1
+end
+```
+
+Builders use the same defaults, missing attribute errors, unknown attribute errors, and validation rules as `new` and `with`.
+
 ## Immutability
 
 Objects are frozen after initialization.

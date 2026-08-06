@@ -1,24 +1,40 @@
 # Immuto
 
-Immuto helps you create small immutable value objects in Ruby.
+Immuto is a tiny Ruby gem for making little objects that do not mutate.
 
-It is framework-agnostic and works with plain Ruby classes. Include `Immuto`, declare attributes, and every instance becomes a frozen object with reader methods, defaults, value-based equality, and safe copy updates.
+Basically: you define the fields once, create the object, and then any "change"
+gives you a new copy instead of messing with the old one.
 
-## Installation
+I made this because sometimes I want plain Ruby objects that feel predictable
+without pulling in a whole framework or writing the same boilerplate again.
 
-Add Immuto to your Gemfile:
+## The vibe
+
+- plain Ruby
+- include one module
+- declare a few attributes
+- get frozen objects
+- update by copying with `with`
+- turn things into hashes or JSON when needed
+- diff, merge, and snapshot objects if you want to get fancy
+
+Not a huge architecture thing. Just a small helper for value-object style code.
+
+## Install
+
+Add it to your `Gemfile`:
 
 ```ruby
 gem "immuto"
 ```
 
-Then install:
+Then:
 
 ```bash
 bundle install
 ```
 
-## Quick Start
+## Tiny example
 
 ```ruby
 class User
@@ -29,78 +45,34 @@ class User
 end
 
 user = User.new(name: "Jeff", age: 24)
-updated = user.with(age: 25)
+older = user.with(age: 25)
 
 user.age
 #=> 24
 
-updated.age
+older.age
 #=> 25
 ```
 
-The original object does not change. `with` returns a new object with the requested changes.
-
-## Attributes
-
-Declare attributes with `attribute`.
-
-```ruby
-class Post
-  include Immuto
-
-  attribute :title
-  attribute :published
-end
-```
-
-Attributes are available as readers:
-
-```ruby
-post = Post.new(title: "Hello", published: false)
-
-post.title
-#=> "Hello"
-```
-
-Writer methods are not generated:
-
-```ruby
-post.respond_to?(:title=)
-#=> false
-```
-
-Attributes without defaults are required:
-
-```ruby
-Post.new(title: "Hello")
-# raises Immuto::MissingAttributeError
-```
-
-Passing `nil` explicitly is allowed:
-
-```ruby
-Post.new(title: "Hello", published: nil)
-```
+The first object stays the same. `with` returns a new frozen copy.
 
 ## Defaults
 
-Use `default:` for optional attributes.
-
 ```ruby
-class User
+class Account
   include Immuto
 
   attribute :name
   attribute :active, default: true
 end
 
-user = User.new(name: "Jeff")
+account = Account.new(name: "side project")
 
-user.active
+account.active
 #=> true
 ```
 
-Callable defaults are evaluated when a new object is created.
+If the default should be fresh each time, use a lambda:
 
 ```ruby
 class Session
@@ -111,11 +83,9 @@ class Session
 end
 ```
 
-Use callable defaults for values that should be fresh for each instance.
+## Simple checks
 
-## Validation
-
-Use `validate:` to reject invalid values.
+You can add a small validation lambda:
 
 ```ruby
 class User
@@ -129,39 +99,17 @@ User.new(name: "Jeff", age: -1)
 # raises Immuto::ValidationError
 ```
 
-Use `message:` to customize the error.
+Custom message if you care:
 
 ```ruby
-class User
-  include Immuto
-
-  attribute :age,
-            validate: ->(value) { value >= 0 },
-            message: "must be greater than or equal to 0"
-end
-
-User.new(age: -1)
-# raises Immuto::ValidationError:
-# validation failed for :age: must be greater than or equal to 0
+attribute :age,
+          validate: ->(value) { value >= 0 },
+          message: "must be 0 or more"
 ```
 
-Validation runs whenever Immuto builds a new object, including `new`, `with`, `with_path`, and `from_h`.
+## Block builder
 
-## Builders
-
-Use `build` when you prefer setting attributes in a block.
-
-```ruby
-user = User.build do |u|
-  u.name "Jeff"
-  u.age 24
-end
-
-user.age
-#=> 24
-```
-
-You can also use an instance-eval style block.
+Sometimes this reads nicer than passing a hash:
 
 ```ruby
 user = User.build do
@@ -170,50 +118,17 @@ user = User.build do
 end
 ```
 
-Use `rebuild` to create an updated copy with a builder.
+And you can rebuild from an existing object:
 
 ```ruby
-updated = user.rebuild do |u|
-  u.age 25
-end
-
-user.age
-#=> 24
-
-updated.age
-#=> 25
-```
-
-Builders can read the current value during `rebuild`.
-
-```ruby
-older_user = user.rebuild do |u|
-  u.age u.age + 1
+older = user.rebuild do
+  age 25
 end
 ```
 
-Builders use the same defaults, missing attribute errors, unknown attribute errors, and validation rules as `new` and `with`.
+## Nested updates
 
-## Immutability
-
-Objects are frozen after initialization.
-
-```ruby
-user = User.new(name: "Jeff", age: 24)
-
-user.frozen?
-#=> true
-```
-
-To change a value, create an updated copy:
-
-```ruby
-older_user = user.with(age: 25)
-```
-
-## Nested Updates
-
-Use `with_path` to update an immutable object inside another immutable object.
+For objects inside objects, `with_path` saves a bit of typing:
 
 ```ruby
 class Profile
@@ -242,241 +157,93 @@ account.profile.display_name
 
 updated.profile.display_name
 #=> "Ada"
-
-updated.profile.timezone
-#=> "UTC"
 ```
 
-`with_path` can update deeper paths too.
+Only the changed path is rebuilt. The rest stays as-is.
 
-```ruby
-updated = account.with_path(:profile, :settings, :theme, "dark")
-```
-
-Objects along the updated path are rebuilt. Unchanged values are reused.
-
-## Serialization
-
-Use `to_h` to turn an immutable object into a plain Ruby hash.
+## Hashes and JSON
 
 ```ruby
 user = User.new(name: "Jeff", age: 24)
 
 user.to_h
 #=> { name: "Jeff", age: 24 }
-```
 
-Nested Immuto objects are serialized as nested hashes.
-
-```ruby
-account.to_h
-#=> {
-#     profile: { display_name: "Ada", timezone: "UTC" },
-#     plan: "free"
-#   }
-```
-
-Use `to_json` when you need a JSON string.
-
-```ruby
 user.to_json
 #=> "{\"name\":\"Jeff\",\"age\":24}"
 ```
 
-Use `from_h` to build an immutable object from a hash.
+You can also build from a hash:
 
 ```ruby
 user = User.from_h("name" => "Jeff", "age" => 24)
-
-user.name
-#=> "Jeff"
 ```
 
-`from_h` applies defaults and raises the same missing or unknown attribute errors as `new`.
+Nested hashes are not magically converted into nested classes. Build those
+objects yourself first.
 
-Nested hashes are not converted into nested classes automatically. Build nested objects first when you need them.
+## Diff and merge
 
-```ruby
-profile = Profile.from_h(display_name: "Ada", timezone: "UTC")
-account = Account.from_h(profile: profile, plan: "free")
-```
-
-## Diffing
-
-Use `diff` to compare two objects of the same class.
+Diff shows what changed:
 
 ```ruby
 user = User.new(name: "Jeff", age: 24)
-updated = user.with(age: 25)
+older = user.with(age: 25)
 
-user.diff(updated)
-#=> {
-#     age: { from: 24, to: 25 }
-#   }
+user.diff(older)
+#=> { age: { from: 24, to: 25 } }
 ```
 
-Nested Immuto objects are diffed recursively.
-
-```ruby
-account.diff(updated_account)
-#=> {
-#     profile: {
-#       display_name: { from: "Jeff", to: "Ada" }
-#     }
-#   }
-```
-
-Arrays and hashes are compared by value.
-
-Diffing requires two objects of the same class.
-
-```ruby
-user.diff(Object.new)
-# raises Immuto::DiffError
-```
-
-## Merging
-
-Use `merge` to combine two objects of the same class.
+Merge takes another object of the same class and lets the incoming values win:
 
 ```ruby
 base = User.new(name: "Jeff", age: 24)
 incoming = User.new(name: "Jeff", age: 25)
 
-merged = base.merge(incoming)
-
-merged.age
+base.merge(incoming).age
 #=> 25
 ```
 
-The incoming object wins for changed values. `merge` returns a new frozen object and leaves both inputs unchanged.
-
-Nested Immuto objects are merged recursively.
-
-```ruby
-merged = account.merge(incoming_account)
-
-merged.profile.display_name
-#=> "Ada"
-```
-
-Arrays and hashes are replaced by the incoming value.
-
-Merging requires two objects of the same class.
-
-```ruby
-user.merge(Object.new)
-# raises Immuto::MergeError
-```
+Nested Immuto objects diff and merge recursively.
 
 ## Snapshots
 
-Use `snapshot` to capture the serialized state of an immutable object.
+Snapshots are frozen copies of the serialized state:
 
 ```ruby
 user = User.new(name: "Jeff", age: 24)
 snapshot = user.snapshot
 
-snapshot.to_h
-#=> { name: "Jeff", age: 24 }
+older = user.with(age: 25)
+
+older.changes_since(snapshot)
+#=> { age: { from: 24, to: 25 } }
 ```
 
-Snapshots are frozen and detached from later changes to mutable attribute values.
-
-Use `restore` to build an object from a snapshot.
+You can restore from one too:
 
 ```ruby
 restored = User.restore(snapshot)
-
-restored.age
-#=> 24
 ```
 
-Use `changes_since` to compare an object with an earlier snapshot.
+## Stuff it complains about
 
-```ruby
-updated = user.with(age: 25)
+Immuto is small, but it does try to catch the obvious mistakes:
 
-updated.changes_since(snapshot)
-#=> {
-#     age: { from: 24, to: 25 }
-#   }
-```
+- missing required attributes
+- unknown attributes
+- invalid values from `validate:`
+- diffing or merging different classes
+- nested updates through something that is not an Immuto object
 
-Nested Immuto objects are stored as nested hashes in snapshots.
-
-```ruby
-account.snapshot.to_h
-#=> {
-#     profile: { display_name: "Ada", timezone: "UTC" },
-#     plan: "free"
-#   }
-```
-
-`changes_since` compares serialized state, so nested changes are reported cleanly. `restore` does not infer nested classes automatically; build nested objects first when restoring nested state.
-
-## Equality
-
-Two Immuto objects are equal when they have the same class and the same attribute values.
-
-```ruby
-User.new(name: "Jeff", age: 24) == User.new(name: "Jeff", age: 24)
-#=> true
-
-User.new(name: "Jeff", age: 24) == User.new(name: "Jeff", age: 25)
-#=> false
-```
-
-## Unknown Attributes
-
-Immuto raises an error when you initialize or update an object with an attribute that was not declared.
-
-```ruby
-User.new(name: "Jeff", email: "jeff@example.com")
-# raises Immuto::UnknownAttributeError
-
-user.with(email: "jeff@example.com")
-# raises Immuto::UnknownAttributeError
-```
-
-Nested updates must pass through values that support `with_path`.
-
-```ruby
-user.with_path(:name, :first, "Ada")
-# raises Immuto::NestedUpdateError
-```
-
-## Inspecting Objects
-
-`inspect` shows the declared attributes and their values.
-
-```ruby
-user = User.new(name: "Jeff", active: true)
-
-user.inspect
-#=> #<User name="Jeff" active=true>
-```
-
-## Development
-
-Install dependencies:
+## Playing with it locally
 
 ```bash
 bin/setup
-```
-
-Run the test suite:
-
-```bash
 bundle exec rake
-```
-
-Open a console:
-
-```bash
 bin/console
 ```
 
 ## License
 
-Immuto is available as open source under the terms of the MIT License.
+MIT. Have fun with it.

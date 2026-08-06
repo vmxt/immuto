@@ -15,6 +15,7 @@ than dragging in a whole framework.
 - frozen objects by default
 - update with `with`
 - nested updates with `with_path`
+- frozen arrays and hashes when you want them
 - hash, JSON, diff, merge, and snapshots when needed
 
 ## Install
@@ -59,6 +60,13 @@ first.diff(upgraded)
 #=> { rarity: { from: 2, to: 3 } }
 
 restored = Trinket.restore(snapshot)
+```
+
+Frozen collections are there for attributes that hold arrays or hashes:
+
+```ruby
+tags = Immuto.array("ruby", "tiny")
+meta = Immuto.hash(status: "draft")
 ```
 
 Nested objects can be nudged too:

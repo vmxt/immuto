@@ -1,6 +1,10 @@
 module Immuto
   VERSION: String
 
+  def self.array: (*untyped items) -> Array[untyped]
+  def self.hash: (?untyped values, **untyped keywords) -> Hash[untyped, untyped]
+  def self.deep_freeze: (untyped value) -> untyped
+
   class Error < StandardError
   end
 

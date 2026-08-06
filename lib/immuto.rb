@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "immuto/attribute"
+require_relative "immuto/collection"
 require_relative "immuto/diff"
 require_relative "immuto/snapshot"
 require_relative "immuto/history"

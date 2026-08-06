@@ -232,6 +232,88 @@ RSpec.describe Immuto do
     expect(JSON.parse(user.to_json)).to eq("name" => "Jeff", "age" => 24)
   end
 
+  it "creates frozen arrays with collection helpers" do
+    tags = Immuto.array("ruby", "immutable")
+
+    expect(tags).to eq(%w[ruby immutable])
+    expect(tags).to be_frozen
+    expect(tags.first).to be_frozen
+    expect { tags << "later" }.to raise_error(FrozenError)
+  end
+
+  it "creates frozen hashes with collection helpers" do
+    meta = Immuto.hash(status: "draft", tags: ["ruby"])
+
+    expect(meta).to eq(status: "draft", tags: ["ruby"])
+    expect(meta).to be_frozen
+    expect(meta[:status]).to be_frozen
+    expect(meta[:tags]).to be_frozen
+    expect { meta[:tags] << "later" }.to raise_error(FrozenError)
+  end
+
+  it "creates frozen hash copies from hash-like values" do
+    meta = Immuto.hash({ "status" => "draft" }, reviewed: false)
+
+    expect(meta).to eq("status" => "draft", reviewed: false)
+    expect(meta).to be_frozen
+    expect(meta.keys.first).to be_frozen
+  end
+
+  it "deep freezes nested collection copies without mutating the original collection" do
+    original = { tags: ["ruby"] }
+    frozen_copy = Immuto.deep_freeze(original)
+
+    original[:tags] << "mutable"
+
+    expect(original[:tags]).to eq(%w[ruby mutable])
+    expect(frozen_copy).to eq(tags: ["ruby"])
+    expect(frozen_copy).to be_frozen
+    expect(frozen_copy[:tags]).to be_frozen
+  end
+
+  it "preserves immutable objects inside frozen collections" do
+    user = user_class.new(name: "Jeff", age: 24)
+    users = Immuto.array(user)
+
+    expect(users.first).to be(user)
+    expect(users).to be_frozen
+  end
+
+  it "uses frozen collections as safe defaults" do
+    post_class = Class.new do
+      include Immuto
+
+      attribute :title
+      attribute :tags, default: -> { Immuto.array }
+    end
+
+    post = post_class.new(title: "Hello")
+    updated = post.with(tags: Immuto.array(*post.tags, "ruby"))
+
+    expect(post.tags).to eq([])
+    expect(post.tags).to be_frozen
+    expect(updated.tags).to eq(["ruby"])
+    expect(updated.tags).to be_frozen
+  end
+
+  it "serializes immutable objects inside frozen collections" do
+    user = user_class.new(name: "Jeff", age: 24)
+    group_class = Class.new do
+      include Immuto
+
+      attribute :members
+    end
+
+    group = group_class.new(members: Immuto.array(user))
+
+    expect(group.to_h).to eq(members: [{ name: "Jeff", age: 24 }])
+  end
+
+  it "raises when creating a hash helper from non-hash-like values" do
+    expect { Immuto.hash("nope") }
+      .to raise_error(ArgumentError, "hash requires a hash-like object")
+  end
+
   it "returns an empty diff for equal objects" do
     user = user_class.new(name: "Jeff", age: 24)
     same_user = user_class.new(name: "Jeff", age: 24)

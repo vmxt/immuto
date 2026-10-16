@@ -62,6 +62,29 @@ first.diff(upgraded)
 restored = Trinket.restore(snapshot)
 ```
 
+Attributes can enforce a type or coerce an input before type and custom
+validation:
+
+```ruby
+require "time"
+
+class Event
+  include Immuto
+
+  attribute :age, type: Integer
+  attribute :created_at, type: Time, coerce: ->(value) { Time.parse(value) }
+end
+
+event = Event.new(age: 42, created_at: "2026-10-17 10:00:00 UTC")
+event.created_at
+#=> a Time instance
+```
+
+Use `coerce` when inputs should be converted; `type` checks the value after
+coercion. For example, `age: "42"` raises `Immuto::ValidationError` because no
+coercion was declared for `age`. A failed coercion or type check also raises
+`Immuto::ValidationError`.
+
 Frozen collections are there for attributes that hold arrays or hashes:
 
 ```ruby

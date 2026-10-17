@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 RSpec.describe Immuto do
   let(:user_class) do
     Class.new do
@@ -886,6 +888,71 @@ RSpec.describe Immuto do
       .to raise_error(Immuto::ValidationError, "validation failed for :age")
   end
 
+  it "enforces declared attribute types" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, type: Integer
+    end
+
+    expect(klass.new(age: 24).age).to eq(24)
+    expect { klass.new(age: "24") }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age: must be an instance of Integer")
+  end
+
+  it "coerces values before checking types and custom validation" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, type: Integer, coerce: ->(value) { Integer(value) },
+                      validate: ->(value) { value >= 0 }
+    end
+
+    expect(klass.new(age: "24").age).to eq(24)
+    expect { klass.new(age: "-1") }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age")
+  end
+
+  it "coerces parsed times before checking their type" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :created_at, type: Time, coerce: ->(value) { Time.parse(value) }
+    end
+
+    created_at = klass.new(created_at: "2026-10-17 10:00:00 UTC").created_at
+
+    expect(created_at).to be_a(Time)
+    expect(created_at).to eq(Time.utc(2026, 10, 17, 10))
+  end
+
+  it "coerces default values and updates" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, default: "24", type: Integer, coerce: ->(value) { Integer(value) }
+    end
+
+    user = klass.new
+    updated = user.with(age: "25")
+
+    expect(user.age).to eq(24)
+    expect(updated.age).to eq(25)
+  end
+
+  it "wraps coercion failures in validation errors with their cause" do
+    klass = Class.new do
+      include Immuto
+
+      attribute :age, type: Integer, coerce: ->(value) { Integer(value) }
+    end
+
+    expect { klass.new(age: "not an integer") }
+      .to raise_error(Immuto::ValidationError, "validation failed for :age") { |error|
+        expect(error.cause).to be_a(ArgumentError)
+      }
+  end
+
   it "uses custom validation messages" do
     klass = Class.new do
       include Immuto
@@ -1086,9 +1153,29 @@ RSpec.describe Immuto do
       Class.new do
         include Immuto
 
-        attribute :name, type: String
+        attribute :name, imaginary_option: true
       end
-    end.to raise_error(ArgumentError, "unknown attribute option: :type")
+    end.to raise_error(ArgumentError, "unknown attribute option: :imaginary_option")
+  end
+
+  it "raises when type is not a class or module" do
+    expect do
+      Class.new do
+        include Immuto
+
+        attribute :name, type: "String"
+      end
+    end.to raise_error(ArgumentError, "type must be a class or module")
+  end
+
+  it "raises when coerce is not callable" do
+    expect do
+      Class.new do
+        include Immuto
+
+        attribute :name, coerce: true
+      end
+    end.to raise_error(ArgumentError, "coerce must respond to call")
   end
 
   it "raises when validate is not callable" do

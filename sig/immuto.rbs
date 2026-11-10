@@ -1,6 +1,8 @@
 module Immuto
   VERSION: String
 
+  type diff_value = { from: untyped, to: untyped } | Hash[untyped, diff_value]
+
   def self.array: (*untyped items) -> Array[untyped]
   def self.hash: (?untyped values, **untyped keywords) -> Hash[untyped, untyped]
   def self.deep_freeze: (untyped value) -> untyped
@@ -81,10 +83,10 @@ module Immuto
     def with_path: (*untyped path_and_value) -> instance
     def to_h: () -> Hash[Symbol, untyped]
     def to_json: (*untyped args) -> String
-    def diff: (untyped other) -> Hash[Symbol, untyped]
+    def diff: (untyped other) -> Hash[Symbol, diff_value]
     def merge: (untyped other) -> instance
     def snapshot: () -> Immuto::Snapshot
-    def changes_since: (Immuto::Snapshot snapshot) -> Hash[Symbol, untyped]
+    def changes_since: (Immuto::Snapshot snapshot) -> Hash[Symbol, diff_value]
     def rebuild: () { (Immuto::Builder) -> untyped } -> instance
                | () { () -> untyped } -> instance
     def ==: (untyped other) -> bool

@@ -34,3 +34,44 @@ jobs:
           bundler-cache: true
       - name: Run the default task
         run: bundle exec rake
+
+  gem:
+    runs-on: ubuntu-latest
+    name: Build and install gem
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - name: Build gem
+        run: gem build immuto.gemspec --output "$RUNNER_TEMP/immuto.gem"
+      - name: Verify packaged files
+        env:
+          GEM_FILE: ${{ runner.temp }}/immuto.gem
+        run: |
+          ruby -rrubygems/package -e '
+            required_files = %w[
+              CHANGELOG.md
+              LICENSE.txt
+              README.md
+              lib/immuto.rb
+              sig/immuto.rbs
+            ]
+            packaged_files = Gem::Package.new(ENV.fetch("GEM_FILE")).spec.files
+            missing_files = required_files - packaged_files
+            abort "Gem is missing expected files: #{missing_files.join(", ")}" unless missing_files.empty?
+          '
+      - name: Install and require built gem
+        run: |
+          gem install --install-dir "$RUNNER_TEMP/gems" --no-document "$RUNNER_TEMP/immuto.gem"
+          GEM_HOME="$RUNNER_TEMP/gems" GEM_PATH="$RUNNER_TEMP/gems" ruby -e '
+            require "immuto"
+            example = Class.new do
+              include Immuto
+              attribute :value
+            end.new(value: :works)
+            abort "Installed gem failed smoke check" unless example.value == :works && example.frozen?
+          '

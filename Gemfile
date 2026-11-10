@@ -6,6 +6,7 @@ source "https://rubygems.org"
 gemspec
 
 gem "irb"
+gem "parallel", "~> 1.27"
 gem "rake", "~> 13.0"
 
 gem "rspec", "~> 3.0"
